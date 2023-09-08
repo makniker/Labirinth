@@ -5,16 +5,13 @@ extends Node2D
 enum CellType { ACTOR, LIGHT_SOURCE, OBJECT }
 #warning-ignore:unused_class_variable
 export(CellType) var type = CellType.ACTOR
-
-var active = true setget set_active
-
+var grid_size = 16
 
 var light_range = 5;
 
-func set_active(value):
-	active = value
-	set_process(value)
-	set_process_input(value)
-
 func spawn(pos: Vector2):
-	position = pos
+	position = pos * grid_size
+
+
+func get_position() -> Vector2:
+	return position / grid_size

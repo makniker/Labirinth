@@ -9,13 +9,11 @@ export(PackedScene) var light_source_scene = preload("res://grid_movement/pawns/
 
 var lights_sources = [Vector2(5, 5)]
 
-var player_fow = Array()
-
 func _ready():
 	obst.update_obst()
 	fog.set_all_set_visible(false)
 	spawn_pawn(player, Vector2(3, 3))
-	place_random_light_sources(0)
+	place_random_light_sources(6)
 	place_light_sources(lights_sources)
 
 func _process(_delta):
@@ -40,24 +38,39 @@ func place_light_sources(lights_sources_places: Array):
 
 func spawn_pawn(pawn, pos):
 	assert(obst.get_cellv(pos) == -1)
-	pawn.position = pos * 16
+	pawn.spawn(pos)
 
-func is_in_fow(pawn1: Pawn, pawn2: Pawn) -> bool:
-	if pawn1.position != pawn2.position:
-		var direction = pawn1.position.direction_to(pawn2.position)
-		var vec2 = pawn1.position
-		while vec2 != pawn2.position:
-			if obst.is_wall(obst.world_to_map(vec2)):
+func is_in_visible_line(pawn1: Pawn, pos: Vector2, light_range: int) -> bool:
+	if pawn1.get_position() == pos:
+		return true
+	if is_in_radius(pawn1.get_position(), pos, light_range):
+		var direction = pawn1.get_position().direction_to(pos)
+		var vec2 = pawn1.get_position()
+		while is_in_radius(pos, vec2, light_range):
+			if obst.is_wall(vec2):
 				return false
 			vec2 += direction
-	return true
+		return true
+	return false
+
+
+func is_in_fow(pawn1: Pawn, visible_cells: Array):
+	for cell in visible_cells:
+		if is_in_visible_line(pawn1, cell, pawn1.light_range):
+			return true
+	return false
+	
+
+func is_in_radius(center: Vector2, point: Vector2, radius) -> bool:
+	return abs(center.x - point.x) + abs(center.y - point.y) <= radius
 
 func update_shadows():
 	fog.set_all_set_visible(false)
 	for child in get_children():
 		if child is Pawn:
-				if is_in_fow(player, child):
-					update_shadow(obst.world_to_map(child.position), 5)
+			var arr = obst.calculate_fow(child.get_position(), child.light_range)
+			if is_in_fow(player, arr):
+				update_shadow(obst.world_to_map(child.position), arr, child.light_range)
 		
 func request_move(pawn: Pawn, direction: Vector2):
 	var cell_start = obst.world_to_map(pawn.position)
@@ -68,5 +81,5 @@ func request_move(pawn: Pawn, direction: Vector2):
 			return obst.map_to_world(cell_target)
 	return null
 	
-func update_shadow(pos: Vector2, distance: int):
-	fog.update_shadows(obst.calculate_fow(pos, distance))
+func update_shadow(pos: Vector2, fow: Array, distance: int):
+	fog.update_shadows(fow)
